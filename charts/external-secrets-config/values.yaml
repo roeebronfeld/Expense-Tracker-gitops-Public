@@ -1,0 +1,43 @@
+# External Secrets Configuration Values
+
+
+# AWS Configuration
+aws:
+  region: us-east-1
+  
+# Service Account for ESO (uses IRSA)
+serviceAccount:
+  # The name of the ESO service account
+  name: external-secrets
+  namespace: external-secrets
+  # IAM Role ARN for IRSA - populated by Terraform output
+  roleArn: ""
+
+# ClusterSecretStore Configuration
+clusterSecretStore:
+  name: aws-secrets-manager
+  # Provider configuration
+  provider: aws
+  # Service type - SecretsManager or ParameterStore
+  service: SecretsManager
+
+# ArgoCD GitHub App Repository Credentials
+argocd:
+  # Enable the ExternalSecret for ArgoCD repo credentials
+  enabled: true
+  namespace: argocd
+  # GitHub App Configuration
+  github:
+    # The URL pattern that these credentials apply to
+    url: https://github.com/roeebronfeld
+    appID: "YOUR_GITHUB_APP_ID"
+    installationID: "YOUR_GITHUB_APP_INSTALLATION_ID"
+  # AWS Secrets Manager secret name containing the private key
+  secretName: argocd/github-app-private-key
+  # How often to refresh the secret from AWS
+  refreshInterval: 1h
+
+postgresql:
+  enabled: false
+  refreshInterval: 1h
+  secrets: []

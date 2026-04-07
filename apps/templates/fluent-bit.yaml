@@ -1,0 +1,29 @@
+# FluentBit - Centralized Logging to CloudWatch
+{{- if .Values.platformApps.fluentBit.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+
+  source:
+    repoURL: {{ .Values.platformApps.fluentBit.repoURL }}
+    targetRevision: {{ .Values.platformApps.fluentBit.targetRevision }}
+    chart: {{ .Values.platformApps.fluentBit.chart }}
+    helm:
+      valuesObject:
+        {{- toYaml .Values.platformApps.fluentBit.values | nindent 8 }}
+
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.platformApps.fluentBit.namespace }}
+
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+{{- end }}

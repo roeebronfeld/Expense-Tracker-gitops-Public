@@ -1,0 +1,57 @@
+# Monitoring Stack Application (kube-prometheus-stack)
+{{- if .Values.platformApps.monitoring.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  annotations:
+    # Wave 2: sync after external-secrets-config (wave 1) so ClusterSecretStore
+    # is ready before Grafana's ExternalSecret tries to fetch credentials.
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+  
+  sources:
+    - repoURL: {{ .Values.platformApps.monitoring.repoURL }}
+      targetRevision: {{ .Values.platformApps.monitoring.targetRevision }}
+      chart: {{ .Values.platformApps.monitoring.chart }}
+      helm:
+        valueFiles:
+          {{- range .Values.platformApps.monitoring.valueFiles }}
+          - {{ . }}
+          {{- end }}
+        valuesObject:
+          {{- toYaml .Values.platformApps.monitoring.values | nindent 10 }}
+    - repoURL: {{ .Values.spec.repoURL }}
+      targetRevision: {{ .Values.spec.targetRevision }}
+      ref: values
+  
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.platformApps.monitoring.namespace }}
+  
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+  
+  # Ignore certain fields that change frequently
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jqPathExpressions:
+        - '.spec.data[]?.remoteRef.conversionStrategy'
+        - '.spec.data[]?.remoteRef.decodingStrategy'
+        - '.spec.data[]?.remoteRef.metadataPolicy'
+{{- end }}

@@ -1,0 +1,36 @@
+# ExternalSecret for ArgoCD GitHub App Repository Credentials
+#
+{{- if .Values.argocd.enabled }}
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: github-app-repo-creds
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    app.kubernetes.io/name: external-secrets-config
+    app.kubernetes.io/component: argocd-auth
+    app.kubernetes.io/part-of: argocd
+spec:
+  refreshInterval: {{ .Values.argocd.refreshInterval }}
+  secretStoreRef:
+    name: {{ .Values.clusterSecretStore.name }}
+    kind: ClusterSecretStore
+  target:
+    name: github-app-repo-creds
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: repo-creds
+      data:
+        type: "git"
+        url: {{ .Values.argocd.github.url | quote }}
+        githubAppID: {{ .Values.argocd.github.appID | quote }}
+        githubAppInstallationID: {{ .Values.argocd.github.installationID | quote }}
+        githubAppPrivateKey: "{{`{{ .githubAppPrivateKey }}`}}"
+  data:
+    - secretKey: githubAppPrivateKey
+      remoteRef:
+        key: {{ .Values.argocd.secretName }}
+{{- end }}

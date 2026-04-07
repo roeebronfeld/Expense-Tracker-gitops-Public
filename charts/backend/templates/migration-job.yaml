@@ -1,0 +1,153 @@
+# Database Migration Job
+{{- if .Values.migration.enabled }}
+{{- $migrationName := printf "%s-migration-%d" (include "backend.fullname" . | trunc 50 | trimSuffix "-") .Release.Revision }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $migrationName }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    # ArgoCD PreSync hook - runs BEFORE the main resources are synced
+    argocd.argoproj.io/hook: PreSync
+    # Delete the job after it succeeds (keep failed for debugging)
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # Higher weight runs first (if multiple PreSync hooks)
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  # Time to live after job completes (for cleanup)
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished | default 600 }}
+  # Number of retries before marking as failed
+  backoffLimit: {{ .Values.migration.backoffLimit | default 3 }}
+  # Only run once
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        {{- include "backend.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+      annotations:
+        # Prevent Istio/Envoy sidecar from blocking job completion
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Use default SA for PreSync hook since backend SA doesn't exist yet
+      serviceAccountName: default
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Init container to wait for database to be ready
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL to be ready..."
+              {{- if .Values.database.useExternalSecret }}
+              # For RDS: Get host from environment variable
+              DB_HOST="${DB_HOST:-{{ .Values.database.host }}}"
+              DB_PORT="${DB_PORT:-{{ .Values.database.port }}}"
+              {{- else }}
+              DB_HOST="{{ .Values.database.host }}"
+              DB_PORT="{{ .Values.database.port }}"
+              {{- end }}
+              until nc -z "$DB_HOST" "$DB_PORT"; do
+                echo "PostgreSQL at $DB_HOST:$DB_PORT is not ready yet, sleeping..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+          {{- if .Values.database.useExternalSecret }}
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.externalSecretName }}
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.externalSecretName }}
+                  key: DB_PORT
+          {{- end }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: migration
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.database.useExternalSecret }}
+          command:
+            {{- toYaml .Values.migration.command | nindent 12 }}
+          {{- else }}
+          command:
+            - sh
+            - -c
+            - |
+              export DATABASE_URL="$(node -e 'const user=encodeURIComponent(process.env.DB_USER||""); const pass=encodeURIComponent(process.env.DB_PASSWORD||""); const host=process.env.DB_HOST||"localhost"; const port=process.env.DB_PORT||"5432"; const name=process.env.DB_NAME||"postgres"; process.stdout.write(`postgresql://${user}:${pass}@${host}:${port}/${name}?schema=public`)')"
+              exec npx prisma migrate deploy
+          {{- end }}
+          env:
+            {{- if .Values.database.useExternalSecret }}
+            # DATABASE_URL from External Secret (AWS Secrets Manager via ESO)
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.externalSecretName }}
+                  key: DATABASE_URL
+            {{- else }}
+            # In-cluster PostgreSQL: pass individual DB components
+            - name: DB_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DB_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.passwordSecretName }}
+                  key: {{ .Values.database.passwordSecretKey }}
+            {{- end }}
+            # Node environment
+            - name: NODE_ENV
+              value: production
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

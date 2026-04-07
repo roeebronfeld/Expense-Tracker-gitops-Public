@@ -1,0 +1,38 @@
+# =============================================================================
+# App-of-Apps Default Values
+# =============================================================================
+# These are defaults. Override in values-<env>.yaml
+# =============================================================================
+
+spec:
+  project: default
+  repoURL: https://github.com/roeebronfeld/Expense-Tracker-gitops-Public.git
+  targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+
+platformApps:
+  awsLoadBalancerController:
+    enabled: false
+  externalDns:
+    enabled: false
+  certManager:
+    enabled: false
+  externalSecrets:
+    enabled: false
+  externalSecretsConfig:
+    enabled: false
+  certManagerConfig:
+    enabled: false
+  postgresql:
+    enabled: false
+  monitoring:
+    enabled: false
+  fluentBit:
+    enabled: false
+
+workloadApps:
+  backend:
+    enabled: false
+  frontend:
+    enabled: false

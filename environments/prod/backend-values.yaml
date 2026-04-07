@@ -1,0 +1,66 @@
+# Backend - Production Values
+
+replicaCount: 2
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/expense-tracker-backend
+  tag: v1.0.0
+  pullPolicy: Always
+imagePullSecrets: []
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+podDisruptionBudget:
+  enabled: false
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+database:
+  useExternalSecret: false
+  host: expense-tracker-postgresql
+  port: 5432
+  name: expense_tracker
+  user: expense_admin
+  passwordSecretName: expense-tracker-postgresql
+  passwordSecretKey: password
+migration:
+  enabled: true
+env:
+  NODE_ENV: production
+  PORT: "3000"
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/group.name: expense-tracker-public
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    external-dns.alpha.kubernetes.io/hostname: app.prod.roctl23.online
+  hosts:
+    - host: app.prod.roctl23.online
+      paths:
+        - path: /api
+          pathType: Prefix

@@ -1,0 +1,173 @@
+# ArgoCD Production Values
+# Public ALB with IP restriction, OIDC SSO via Google, RBAC
+
+global:
+  domain: argocd.prod.roctl23.online
+
+server:
+  extraArgs:
+    - --insecure
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      alb.ingress.kubernetes.io/inbound-cidrs: "203.0.113.10/32"
+      alb.ingress.kubernetes.io/group.name: expense-tracker-restricted
+      alb.ingress.kubernetes.io/group.order: "10"
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
+      alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+      alb.ingress.kubernetes.io/backend-protocol: HTTP
+      external-dns.alpha.kubernetes.io/hostname: argocd.prod.roctl23.online
+    hosts:
+      - argocd.prod.roctl23.online
+    tls:
+      - hosts:
+          - argocd.prod.roctl23.online
+        secretName: argocd-server-tls
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+repoServer:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+
+dex:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+applicationSet:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+notifications:
+  enabled: false
+
+configs:
+  ssh:
+    knownHosts: |
+      github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+      github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+      github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+  params:
+    server.insecure: true
+  cm:
+    admin.enabled: "false"
+    url: https://argocd.prod.roctl23.online
+    dex.config: |
+      connectors:
+        - type: oidc
+          id: google
+          name: Google
+          config:
+            issuer: https://accounts.google.com
+            clientID: $argocd-oidc-secret:client-id
+            clientSecret: $argocd-oidc-secret:client-secret
+            scopes:
+              - openid
+              - profile
+              - email
+    users.anonymous.enabled: "false"
+  rbac:
+    policy.csv: |
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, *, *, allow
+      p, role:admin, repositories, *, *, allow
+      p, role:admin, projects, *, *, allow
+      p, role:admin, accounts, *, *, allow
+      p, role:admin, gpgkeys, *, *, allow
+      p, role:admin, logs, *, *, allow
+      p, role:admin, exec, *, *, allow
+      p, role:developer, applications, get, */*, allow
+      p, role:developer, applications, sync, */*, allow
+      p, role:developer, logs, get, */*, allow
+      p, role:developer, repositories, get, *, allow
+      p, role:developer, clusters, get, *, allow
+      p, role:developer, projects, get, *, allow
+      p, role:readonly, applications, get, */*, allow
+      p, role:readonly, logs, get, */*, allow
+      p, role:readonly, repositories, get, *, allow
+      p, role:readonly, clusters, get, *, allow
+      p, role:readonly, projects, get, *, allow
+      g, roybronfeld@gmail.com, role:admin
+      g, authenticated, role:readonly
+    policy.default: role:readonly
+    scopes: '[groups, email]'
+  secret:
+    createSecret: true
+    argocdServerAdminPasswordMtime: ""
+
+extraObjects:
+  - apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: argocd-oidc-secret
+      namespace: argocd
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: aws-secrets-manager
+        kind: ClusterSecretStore
+      target:
+        name: argocd-oidc-secret
+        creationPolicy: Owner
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/part-of: argocd
+      data:
+        - secretKey: client-id
+          remoteRef:
+            key: expense-tracker/prod/argocd/oidc-credentials
+            property: client_id
+        - secretKey: client-secret
+          remoteRef:
+            key: expense-tracker/prod/argocd/oidc-credentials
+            property: client_secret

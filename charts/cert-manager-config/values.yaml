@@ -1,0 +1,20 @@
+# cert-manager ClusterIssuer Configuration
+# This configures Let's Encrypt for auto-provisioning TLS certificates.
+
+# Email for Let's Encrypt notifications
+email: "admin@roctl23.online"
+
+# AWS Route53 settings for DNS01 challenge
+aws:
+  region: us-east-1
+
+# Hosted zone for DNS01 challenge
+hostedZoneID: ""  # Leave empty to auto-discover
+
+# Use production or staging Let's Encrypt
+# Staging: https://acme-staging-v02.api.letsencrypt.org/directory
+# Production: https://acme-v02.api.letsencrypt.org/directory
+acmeServer: https://acme-v02.api.letsencrypt.org/directory
+
+# Whether to create the staging issuer (for testing)
+createStagingIssuer: true

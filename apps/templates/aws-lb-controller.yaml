@@ -1,0 +1,28 @@
+{{- if .Values.platformApps.awsLoadBalancerController.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+  
+  source:
+    repoURL: {{ .Values.platformApps.awsLoadBalancerController.repoURL }}
+    targetRevision: {{ .Values.platformApps.awsLoadBalancerController.targetRevision }}
+    chart: {{ .Values.platformApps.awsLoadBalancerController.chart }}
+    helm:
+      valuesObject:
+        {{- toYaml .Values.platformApps.awsLoadBalancerController.values | nindent 8 }}
+  
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.platformApps.awsLoadBalancerController.namespace }}
+  
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+{{- end }}

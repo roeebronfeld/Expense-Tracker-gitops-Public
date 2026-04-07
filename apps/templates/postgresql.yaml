@@ -1,0 +1,31 @@
+# PostgreSQL Application (In-Cluster Database)
+{{- if .Values.platformApps.postgresql.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql{{ include "apps.envSuffix" . }}
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+  
+  source:
+    repoURL: {{ .Values.platformApps.postgresql.repoURL }}
+    targetRevision: {{ .Values.platformApps.postgresql.targetRevision }}
+    chart: {{ .Values.platformApps.postgresql.chart }}
+    helm:
+      valuesObject:
+        {{- toYaml .Values.platformApps.postgresql.values | nindent 8 }}
+  
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.platformApps.postgresql.namespace }}
+  
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+{{- end }}

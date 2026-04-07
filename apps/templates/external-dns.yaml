@@ -1,0 +1,28 @@
+{{- if .Values.platformApps.externalDns.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+  
+  source:
+    repoURL: {{ .Values.platformApps.externalDns.repoURL }}
+    targetRevision: {{ .Values.platformApps.externalDns.targetRevision }}
+    chart: {{ .Values.platformApps.externalDns.chart }}
+    helm:
+      valuesObject:
+        {{- toYaml .Values.platformApps.externalDns.values | nindent 8 }}
+  
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.platformApps.externalDns.namespace }}
+  
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+{{- end }}

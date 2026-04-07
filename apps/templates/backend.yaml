@@ -1,0 +1,32 @@
+{{- if .Values.workloadApps.backend.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: expense-tracker-backend{{ include "apps.envSuffix" . }}
+  namespace: argocd
+  labels:
+    {{- include "apps.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.spec.project }}
+  
+  source:
+    repoURL: {{ .Values.spec.repoURL }}
+    targetRevision: {{ .Values.spec.targetRevision }}
+    path: {{ .Values.workloadApps.backend.path }}
+    helm:
+      valueFiles:
+        {{- range .Values.workloadApps.backend.valueFiles }}
+        - {{ . }}
+        {{- end }}
+  
+  destination:
+    server: {{ .Values.spec.destination.server }}
+    namespace: {{ .Values.workloadApps.backend.namespace }}
+  
+  syncPolicy:
+    {{- include "apps.syncPolicy" . | nindent 4 }}
+{{- end }}

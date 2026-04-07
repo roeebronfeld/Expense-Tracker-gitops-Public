@@ -1,0 +1,46 @@
+# Let's Encrypt ClusterIssuer (Production)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt Production server
+    server: {{ .Values.acmeServer }}
+    email: {{ .Values.email }}
+    
+    # Secret to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    
+    # DNS01 challenge configuration
+    solvers:
+      - dns01:
+          route53:
+            region: {{ .Values.aws.region }}
+            {{- if .Values.hostedZoneID }}
+            hostedZoneID: {{ .Values.hostedZoneID }}
+            {{- end }}
+            # NOTE: No explicit credentials - uses EKS Pod Identity
+
+---
+{{- if .Values.createStagingIssuer }}
+# Let's Encrypt ClusterIssuer (Staging)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: {{ .Values.email }}
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - dns01:
+          route53:
+            region: {{ .Values.aws.region }}
+            {{- if .Values.hostedZoneID }}
+            hostedZoneID: {{ .Values.hostedZoneID }}
+            {{- end }}
+{{- end }}

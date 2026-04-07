@@ -1,0 +1,43 @@
+# Frontend - Production Values
+
+replicaCount: 2
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/expense-tracker-frontend
+  tag: v1.0.0
+  pullPolicy: Always
+imagePullSecrets: []
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+podDisruptionBudget:
+  enabled: false
+env:
+  VITE_API_URL: "/api"
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/group.name: expense-tracker-public
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    external-dns.alpha.kubernetes.io/hostname: app.prod.roctl23.online
+  hosts:
+    - host: app.prod.roctl23.online
+      paths:
+        - path: /
+          pathType: Prefix
