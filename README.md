@@ -14,10 +14,6 @@ This repository is the declarative source of truth for what should run inside th
 
 ![ArgoCD app of apps tree](docs/assets/argocd-app-of-apps-tree.png)
 
-### Root App Sync Detail
-
-![ArgoCD root app sync](docs/assets/argocd-root-app-sync.png)
-
 ### Sync Demo
 
 [Watch the ArgoCD sync walkthrough](docs/assets/argocd-sync-demo.mp4)
